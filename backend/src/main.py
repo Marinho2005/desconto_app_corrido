@@ -1,38 +1,34 @@
-import sys
-import os
+from src.application.ports.order_gateway import OrderGateway
+from src.application.use_cases.order_use_cases import (
+    CreateOrderUseCase,
+    ListOrdersUseCase,
+)
+from src.controllers.order_controller import OrderController
+from src.infrastructure.gateways.in_memory_order_gateway import InMemoryOrderGateway
+from src.models.discount_model import DiscountRequest
 
-# Adiciona o diretório backend e backend/src ao sys.path para suportar qualquer forma de execução
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
-sys.path.insert(0, current_dir)
 
-try:
-    from src.models.desconto import DescontoNormal, DescontoVIP, DescontoPremium
-    from src.controllers.pedido_controller import PedidoController
-except ImportError:
-    try:
-        from models.desconto import DescontoNormal, DescontoVIP, DescontoPremium
-        from controllers.pedido_controller import PedidoController
-    except ImportError:
-        from backend.src.models.desconto import DescontoNormal, DescontoVIP, DescontoPremium
-        from backend.src.controllers.pedido_controller import PedidoController
+def main() -> None:
+    """Demonstra o fluxo completo de criação, cálculo e listagem."""
+    gateway: OrderGateway = InMemoryOrderGateway()
+    controller = OrderController(
+        create_order=CreateOrderUseCase(gateway),
+        list_orders=ListOrdersUseCase(gateway),
+    )
 
-def main():
-    controller = PedidoController()
-    valor_compra = 100.0
+    controller.create(
+        DiscountRequest(original_price=100.0, discount_percentage=15.0, cupom="EXTRA10")
+    )
+    controller.create(
+        DiscountRequest(original_price=200.0, discount_percentage=10.0)
+    )
 
-    print(f"Valor original da compra: R$ {valor_compra:.2f}\n")
+    for index, order in enumerate(controller.list(), start=1):
+        print(
+            f"Pedido {index}: R$ {order.original_price:.2f} -> "
+            f"R$ {order.final_price:.2f} ({order.discount_percentage:.2f}% de desconto)"
+        )
 
-    total_normal = controller.criar_pedido(valor_compra, DescontoNormal())
-    print(f"Total com Desconto Normal (10%): R$ {total_normal:.2f}\n")
-
-    total_vip = controller.criar_pedido(valor_compra, DescontoVIP())
-    print(f"Total com Desconto VIP (20%): R$ {total_vip:.2f}\n")
-
-    total_premium = controller.criar_pedido(valor_compra, DescontoPremium())
-    print(f"Total com Desconto Premium (30%): R$ {total_premium:.2f}\n")
 
 if __name__ == "__main__":
     main()
-
